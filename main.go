@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	target := "scanme.nmap.org:9999"
+	target := "scanme.nmap.org:80"
 
 	conn, err := net.DialTimeout("tcp", target, 3*time.Second)
 
