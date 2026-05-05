@@ -3,20 +3,28 @@ package main
 import (
 	"fmt"
 	"net"
+	"sync"
 	"time"
 )
 
-func main() {
-	target := "scanme.nmap.org:80"
-
+func scanport(host string, port int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	target := fmt.Sprintf("%s:%d", host, port)
 	conn, err := net.DialTimeout("tcp", target, 3*time.Second)
-
 	if err != nil {
-		fmt.Printf("[-] Connection to %s failed: %v\n", target, err)
 		return
 	}
-
 	defer conn.Close()
+	fmt.Printf("[+] Port %d is open\n", port)
+}
 
-	fmt.Printf("[+] Connection to %s succesful!", target)
+func main() {
+	host := "scanme.nmap.org"
+	var wg sync.WaitGroup
+	for port := 1; port <= 1024; port++ {
+		wg.Add(1)
+		go scanport(host, port, &wg)
+	}
+	wg.Wait()
+	fmt.Println("Scan complete")
 }
