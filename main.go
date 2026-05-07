@@ -11,10 +11,12 @@ import (
 	"time"
 )
 
-func scanport(ip netip.Addr, port int, wg *sync.WaitGroup, results chan<- string) {
+func scanport(ip netip.Addr, port int, wg *sync.WaitGroup, results chan<- string, semaphore chan struct{}) {
 	defer wg.Done()
+	semaphore <- struct{}{}
+	defer func() { <-semaphore }()
 	target := fmt.Sprintf("%s:%d", ip, port)
-	conn, err := net.DialTimeout("tcp", target, 3*time.Second)
+	conn, err := net.DialTimeout("tcp", target, 500*time.Millisecond)
 	if err != nil {
 		return
 	}
@@ -28,7 +30,10 @@ func main() {
 	cidrinput := flag.String("cidr", "45.33.32.156/32", "Network Range to scan")
 	startPort := flag.Int("start", 80, "Start port")
 	endPort := flag.Int("end", 85, "end port")
+	concurrency := flag.Int("concurrency", 500, "Max concurrent goroutines")
 	flag.Parse()
+
+	semaphore := make(chan struct{}, *concurrency)
 
 	prefix, err := netip.ParsePrefix(*cidrinput)
 	if err != nil {
@@ -51,7 +56,7 @@ func main() {
 	for addr := prefix.Addr(); prefix.Contains(addr); addr = addr.Next() {
 		for port := *startPort; port <= *endPort; port++ {
 			wg.Add(1)
-			go scanport(addr, port, &wg, results)
+			go scanport(addr, port, &wg, results, semaphore)
 		}
 	}
 	wg.Wait()
@@ -71,4 +76,5 @@ func main() {
 
 		fmt.Printf("[+] %s is open (%s)\n", port, hostname)
 	}
+
 }
