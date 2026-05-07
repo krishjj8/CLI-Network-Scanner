@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net"
@@ -31,6 +32,7 @@ func main() {
 	startPort := flag.Int("start", 80, "Start port")
 	endPort := flag.Int("end", 85, "end port")
 	concurrency := flag.Int("concurrency", 500, "Max concurrent goroutines")
+	jsonOutput := flag.Bool("json", false, "Output results in JSON format")
 	flag.Parse()
 
 	semaphore := make(chan struct{}, *concurrency)
@@ -63,18 +65,27 @@ func main() {
 	close(results)
 
 	sort.Strings(openPorts)
-	for _, port := range openPorts {
-		parts := strings.Split(port, ":")
-		ip := parts[0]
-
-		hostnames, err := net.LookupAddr(ip)
-		if err != nil || len(hostnames) == 0 {
-			fmt.Printf("[+] %s is open\n", port)
-			continue
+	if *jsonOutput {
+		data, err := json.MarshalIndent(openPorts, "", "  ")
+		if err != nil {
+			fmt.Printf("Error generating JSON: %v\n", err)
+			return
 		}
-		hostname := strings.TrimSuffix(hostnames[0], ".")
+		fmt.Println(string(data))
+	} else {
+		fmt.Println("\n--- Scan Results ---")
+		for _, port := range openPorts {
+			parts := strings.Split(port, ":")
+			ip := parts[0]
 
-		fmt.Printf("[+] %s is open (%s)\n", port, hostname)
+			hostnames, err := net.LookupAddr(ip)
+			if err != nil || len(hostnames) == 0 {
+				fmt.Printf("[+] %s is open\n", port)
+				continue
+			}
+			hostname := strings.TrimSuffix(hostnames[0], ".")
+			fmt.Printf("[+] %s is open (%s)\n", port, hostname)
+		}
 	}
 
 }
