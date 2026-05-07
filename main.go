@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -58,8 +59,16 @@ func main() {
 
 	sort.Strings(openPorts)
 	for _, port := range openPorts {
-		fmt.Printf("[+] Port %s is open\n", port)
+		parts := strings.Split(port, ":")
+		ip := parts[0]
 
+		hostnames, err := net.LookupAddr(ip)
+		if err != nil || len(hostnames) == 0 {
+			fmt.Printf("[+] %s is open\n", port)
+			continue
+		}
+		hostname := strings.TrimSuffix(hostnames[0], ".")
+
+		fmt.Printf("[+] %s is open (%s)\n", port, hostname)
 	}
-	fmt.Printf("\nScan complete. Found %d open ports.\n", len(openPorts))
 }
